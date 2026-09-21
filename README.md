@@ -1,6 +1,31 @@
 # Historical Dialectics Studio
 
-Native Windows-friendly desktop app (Python + PySide6): historical and modern thinkers debate a topic while **The Historiographer** fact-checks in a side panel.
+Thinkers debate a topic while **The Historiographer** fact-checks. Use the **desktop** app or the easier **web** UI.
+
+## Easiest: web (Join & discuss)
+
+Double-click **`Start Web.bat`** (or run the commands below). Browser opens at http://127.0.0.1:7860
+
+- **Join & discuss** — you argue in the Arena; thinkers reply to you
+- **Fishbowl** — watch-only auto debate
+- Type your own topic; Free or Limited sources
+
+```powershell
+cd $HOME\historical-dialectics-studio
+git pull
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m dialectics_studio.web
+```
+
+Then open http://127.0.0.1:7860
+
+## Desktop (PySide6)
+
+Double-click **`Start Dialectics Studio.bat`**, or:
+
+```powershell
+.\.venv\Scripts\python.exe -m dialectics_studio
+```
 
 ## Archetype roster
 
@@ -10,28 +35,5 @@ Native Windows-friendly desktop app (Python + PySide6): historical and modern th
 | **Idealistic** | Socrates, Confucius, Plato, Immanuel Kant |
 | **Fundamentalist** | Karl Marx, Thomas Hobbes, Thomas Aquinas, Adam Smith |
 
-## Run (Windows PowerShell)
-
-```powershell
-git clone https://github.com/StereoP2/historical-dialectics-studio.git
-cd historical-dialectics-studio
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python -m dialectics_studio
-```
-
-- No API key → demo transcript still runs (Marx vs Descartes).
-- Live multi-agent debates → paste an OpenAI-compatible key in the UI (or set `OPENAI_API_KEY`).
-
-## Sources & custom topics
-
-- **Your topic:** type anything in the topic field (presets optional).
-- **Free sources:** debaters cite their own historically plausible works/evidence.
-- **Limited sources:** paste links and/or excerpts; debaters may only argue from those materials.
-
-## Layout
-
-Left: pick 2–3 debaters + topic · Center: Arena · Right: Historiographer + citation tips
-
-Prompts live in `dialectics_studio/prompts/` and `prompts/`.
+- No API key → demo still runs
+- Live debates → paste an OpenAI-compatible key in the UI (or set `OPENAI_API_KEY`)

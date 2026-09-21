@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Historical Dialectics Studio</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a3140;
+    --text: #e8ecf4;
+    --muted: #8b95a8;
+    --accent: #6ea8ff;
+    --you: #c9a227;
+    --hist: #9b8cff;
+    --danger: #e07060;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Segoe UI", system-ui, sans-serif;
+    background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+  header .tag { color: var(--muted); font-size: 0.85rem; }
+  main { flex: 1; display: grid; grid-template-columns: 280px 1fr 300px; min-height: 0; }
+  @media (max-width: 960px) {
+    main { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+  }
+  aside, section {
+    border-right: 1px solid var(--border); padding: 14px; overflow: auto; background: var(--panel);
+  }
+  aside:last-child, #facts { border-right: none; border-left: 1px solid var(--border); }
+  h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 10px; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text], input[type=password], textarea, select {
+    width: 100%; background: #0c0e13; border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 10px; font: inherit;
+  }
+  textarea { min-height: 72px; resize: vertical; }
+  .roster { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow: auto; }
+  .person {
+    display: flex; gap: 8px; align-items: flex-start; padding: 8px; border-radius: 8px;
+    border: 1px solid transparent; cursor: pointer; background: #12151c;
+  }
+  .person:hover { border-color: var(--border); }
+  .person.selected { border-color: var(--accent); background: #152033; }
+  .swatch { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .person strong { font-size: 0.88rem; display: block; }
+  .person span { font-size: 0.75rem; color: var(--muted); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  button {
+    background: var(--accent); color: #0b1020; border: none; border-radius: 8px;
+    padding: 9px 14px; font-weight: 600; cursor: pointer; font: inherit;
+  }
+  button.secondary { background: #2a3344; color: var(--text); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  #arena { display: flex; flex-direction: column; min-height: 0; background: var(--bg); }
+  #transcript { flex: 1; overflow: auto; padding: 8px 4px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .bubble {
+    max-width: 92%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border);
+    background: #151922; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+  }
+  .bubble.you { align-self: flex-end; border-color: #5a4a18; background: #1e1a10; }
+  .bubble.hist { align-self: stretch; border-color: #3a3560; background: #161426; font-size: 0.9rem; }
+  .bubble.sys { align-self: center; color: var(--muted); background: transparent; border-style: dashed; font-size: 0.85rem; }
+  .bubble .who { font-size: 0.75rem; font-weight: 700; margin-bottom: 4px; opacity: 0.9; }
+  .composer {
+    border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .fact { padding: 8px; margin-bottom: 8px; border-radius: 8px; background: #12151c; border: 1px solid var(--border);
+    font-size: 0.82rem; white-space: pre-wrap; color: #c8c4e8; }
+  .fact.bad { border-color: var(--danger); color: #f0b0a8; }
+  .modes { display: flex; gap: 8px; margin-bottom: 8px; }
+  .modes label { margin: 0; display: flex; align-items: center; gap: 4px; color: var(--text); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Historical Dialectics Studio</h1>
+  <span class="tag">Web · Argue with the thinkers</span>
+  <span class="tag" id="conn">connecting…</span>
+</header>
+<main>
+  <aside>
+    <h2>Setup</h2>
+    <div class="modes">
+      <label><input type="radio" name="mode" value="discussion" checked /> Join & discuss</label>
+      <label><input type="radio" name="mode" value="fishbowl" /> Fishbowl</label>
+    </div>
+    <label>Topic (type your own)</label>
+    <input type="text" id="topic" list="topicList" placeholder="e.g. Limits of Capitalist Growth" />
+    <datalist id="topicList"></datalist>
+    <label>Thinkers (pick 1–3)</label>
+    <div class="roster" id="roster"></div>
+    <label>Source mode</label>
+    <select id="sourceMode">
+      <option>Free</option>
+      <option>Limited</option>
+    </select>
+    <label>Links / excerpts (Limited)</label>
+    <textarea id="sources" placeholder="Paste links or excerpts…"></textarea>
+    <label>API key (optional — demo works without)</label>
+    <input type="password" id="apiKey" placeholder="OpenAI-compatible key" autocomplete="off" />
+    <label>Fishbowl rounds</label>
+    <input type="text" id="rounds" value="2" />
+    <div class="row">
+      <button id="startBtn">Start</button>
+      <button class="secondary" id="clearBtn" type="button">Clear</button>
+    </div>
+  </aside>
+  <section id="arena">
+    <h2>Arena</h2>
+    <div id="transcript"></div>
+    <div class="composer">
+      <textarea id="say" placeholder="Your turn — argue, question, push back…" rows="3"></textarea>
+      <div class="row">
+        <button id="sendBtn" disabled>Send to Arena</button>
+      </div>
+    </div>
+  </section>
+  <aside id="facts">
+    <h2>Historiographer</h2>
+    <div id="factFeed"></div>
+  </aside>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let ws, sessionId = null, selected = new Set(), busy = false;
+const colors = {};
+
+function setConn(t) { $("conn").textContent = t; }
+
+function addBubble(ev) {
+  const el = document.createElement("div");
+  el.className = "bubble";
+  if (ev.kind === "status" || ev.kind === "error") el.classList.add("sys");
+  else if (ev.speaker_id === "you") el.classList.add("you");
+  else if (ev.speaker_id === "historiographer" || ev.kind === "factcheck" || ev.kind === "invalidate") {
+    el.classList.add("hist");
+    const f = document.createElement("div");
+    f.className = "fact" + (ev.kind === "invalidate" || /INVALIDATE:\s*YES/i.test(ev.text) ? " bad" : "");
+    f.textContent = (ev.speaker_name + "\n" + ev.text);
+    $("factFeed").prepend(f);
+  }
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = ev.speaker_name || ev.kind;
+  if (colors[ev.speaker_id]) who.style.color = colors[ev.speaker_id];
+  if (ev.speaker_id === "you") who.style.color = "var(--you)";
+  el.appendChild(who);
+  const body = document.createElement("div");
+  body.textContent = ev.text;
+  el.appendChild(body);
+  $("transcript").appendChild(el);
+  $("transcript").scrollTop = $("transcript").scrollHeight;
+}
+
+function connect() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => setConn("live");
+  ws.onclose = () => { setConn("reconnecting…"); setTimeout(connect, 1200); $("sendBtn").disabled = true; };
+  ws.onerror = () => setConn("error");
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.kind === "session") {
+      sessionId = msg.session_id;
+      $("sendBtn").disabled = false;
+      return;
+    }
+    addBubble(msg);
+    if (msg.kind === "status" && /Type your argument/i.test(msg.text || "")) {
+      $("sendBtn").disabled = false;
+      busy = false;
+    }
+    if (msg.kind === "error") busy = false;
+  };
+}
+
+async function loadRoster() {
+  const r = await fetch("/api/roster");
+  const data = await r.json();
+  const box = $("roster");
+  data.personas.forEach(p => {
+    colors[p.id] = p.color;
+    const div = document.createElement("div");
+    div.className = "person";
+    div.innerHTML = `<div class="swatch" style="background:${p.color}"></div>
+      <div><strong>${p.name}</strong><span>${p.archetype} · ${p.years}<br>${p.blurb}</span></div>`;
+    div.onclick = () => {
+      if (selected.has(p.id)) { selected.delete(p.id); div.classList.remove("selected"); }
+      else {
+        if (selected.size >= 3) return;
+        selected.add(p.id); div.classList.add("selected");
+      }
+    };
+    box.appendChild(div);
+  });
+  const dl = $("topicList");
+  data.topics.forEach(t => {
+    const o = document.createElement("option");
+    o.value = t; dl.appendChild(o);
+  });
+  if (data.topics[0]) $("topic").value = data.topics[0];
+}
+
+$("startBtn").onclick = () => {
+  if (!ws || ws.readyState !== 1) return;
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const topic = $("topic").value.trim();
+  if (!topic || selected.size < 1) {
+    addBubble({kind:"error", speaker_name:"System", text:"Need a topic and at least one thinker."});
+    return;
+  }
+  $("transcript").innerHTML = "";
+  $("factFeed").innerHTML = "";
+  sessionId = null;
+  busy = true;
+  $("sendBtn").disabled = mode !== "discussion";
+  ws.send(JSON.stringify({
+    op: "start",
+    mode,
+    topic,
+    persona_ids: [...selected],
+    source_mode: $("sourceMode").value,
+    supplied_sources: $("sources").value,
+    api_key: $("apiKey").value,
+    rounds: parseInt($("rounds").value || "2", 10)
+  }));
+};
+
+$("sendBtn").onclick = () => {
+  const text = $("say").value.trim();
+  if (!text || busy || !ws || ws.readyState !== 1) return;
+  busy = true;
+  $("sendBtn").disabled = true;
+  ws.send(JSON.stringify({ op: "speak", session_id: sessionId, text }));
+  $("say").value = "";
+  // re-enable after a beat; server will keep streaming
+  setTimeout(() => { busy = false; $("sendBtn").disabled = !sessionId; }, 800);
+};
+
+$("say").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("sendBtn").click(); }
+});
+
+$("clearBtn").onclick = () => {
+  $("transcript").innerHTML = "";
+  $("factFeed").innerHTML = "";
+};
+
+loadRoster().then(connect);
+</script>
+</body>
+</html>
