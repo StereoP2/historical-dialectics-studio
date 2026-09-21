@@ -8,6 +8,21 @@ from .demo_script import DEMO_ROUNDS
 from .llm import api_configured, complete, load_prompt
 from .personas import ARCHETYPE_RULES, Persona
 
+FREE_RULES = (
+    "FREE SOURCE MODE: You may draw on any historically plausible sources in your "
+    "tradition — your own works, contemporaries, public records, well-known data. "
+    "Prefer specific titles, years, and passages. Do not invent fake URLs; if unsure, "
+    "cite a real work or say [Source: inferred from X tradition, unverified]."
+)
+
+LIMITED_RULES = (
+    "LIMITED SOURCE MODE: You may ONLY cite and argue from the SUPPLIED MATERIALS below "
+    "(links and/or excerpts), plus your persona's interpretive lens. "
+    "Do not introduce outside books, stats, or URLs. Quote or paraphrase the supplied "
+    "text with [Source: supplied excerpt/link]. If materials are thin, say so in character "
+    "and press opponents on what the materials do and do not show."
+)
+
 
 @dataclass
 class DebateEvent:
@@ -31,7 +46,13 @@ class DebateEngine:
         rounds: int,
         on_event: ProgressCb,
         force_demo: bool = False,
+        source_mode: str = "Free",
+        supplied_sources: str = "",
     ) -> None:
+        mode = "Limited" if source_mode.lower().startswith("limit") else "Free"
+        materials = (supplied_sources or "").strip() or "(none provided)"
+        mode_rules = LIMITED_RULES if mode == "Limited" else FREE_RULES
+
         use_live = (not force_demo) and api_configured(self.api_key)
         if not use_live:
             await _emit(
@@ -40,15 +61,33 @@ class DebateEngine:
                     "status",
                     "system",
                     "System",
-                    "Demo mode (no API key) — playing sample Marx vs Descartes transcript.",
+                    "Demo mode (no API key) — playing sample Marx vs Descartes transcript. "
+                    "Add an API key for live Free/Limited source debates on your custom topic.",
                 ),
             )
             await self._run_demo(on_event)
             return
 
+        if mode == "Limited" and materials == "(none provided)":
+            await _emit(
+                on_event,
+                DebateEvent(
+                    "error",
+                    "system",
+                    "System",
+                    "Limited mode needs at least one link or excerpt in the sources box.",
+                ),
+            )
+            return
+
         await _emit(
             on_event,
-            DebateEvent("status", "system", "System", "Live multi-agent debate started."),
+            DebateEvent(
+                "status",
+                "system",
+                "System",
+                f"Live debate · topic: {topic} · source mode: {mode}",
+            ),
         )
         history: list[tuple[str, str]] = []
         debater_prompt = load_prompt("debater_system.txt")
@@ -65,8 +104,14 @@ class DebateEngine:
                     death_year=persona.death_year,
                     topic=topic,
                     prior_context=prior,
+                    source_mode=mode,
+                    source_mode_rules=mode_rules,
+                    supplied_sources=materials,
                 )
-                user = f"Round {r + 1}. Deliver your next argument on: {topic}"
+                user = (
+                    f"Round {r + 1}. Argue freshly on this topic (not a canned speech): {topic}\n"
+                    f"Source mode: {mode}. Use sources as required by your system rules."
+                )
                 try:
                     text = await complete(system, user, self.api_key)
                 except Exception as exc:  # noqa: BLE001
@@ -82,7 +127,11 @@ class DebateEngine:
                 )
 
                 fsys = fact_prompt.format(
-                    topic=topic, speaker=persona.name, turn_text=text
+                    topic=topic,
+                    speaker=persona.name,
+                    turn_text=text,
+                    source_mode=mode,
+                    supplied_sources=materials,
                 )
                 try:
                     ftext = await complete(

@@ -4,6 +4,7 @@ import asyncio
 
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QCheckBox,
     QComboBox,
     QFormLayout,
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QRadioButton,
     QSpinBox,
     QSplitter,
     QTextEdit,
@@ -31,13 +33,24 @@ class DebateWorker(QThread):
     event = Signal(object)
     finished_ok = Signal()
 
-    def __init__(self, topic, persona_ids, rounds, api_key, force_demo=False):
+    def __init__(
+        self,
+        topic: str,
+        persona_ids: list[str],
+        rounds: int,
+        api_key: str,
+        force_demo: bool = False,
+        source_mode: str = "Free",
+        supplied_sources: str = "",
+    ):
         super().__init__()
         self.topic = topic
         self.persona_ids = persona_ids
         self.rounds = rounds
         self.api_key = api_key
         self.force_demo = force_demo
+        self.source_mode = source_mode
+        self.supplied_sources = supplied_sources
 
     def run(self):
         debaters = [get_persona(pid) for pid in self.persona_ids]
@@ -53,6 +66,8 @@ class DebateWorker(QThread):
                 self.rounds,
                 on_event,
                 force_demo=self.force_demo,
+                source_mode=self.source_mode,
+                supplied_sources=self.supplied_sources,
             )
 
         asyncio.run(_go())
@@ -63,7 +78,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Historical Dialectics Studio")
-        self.resize(1280, 800)
+        self.resize(1320, 860)
         self._worker: DebateWorker | None = None
         self._build()
         self._apply_dark()
@@ -85,29 +100,69 @@ class MainWindow(QMainWindow):
             item.setData(Qt.ItemDataRole.UserRole, p.id)
             item.setToolTip(p.blurb)
             self.persona_list.addItem(item)
-        left_l.addWidget(self.persona_list)
+        left_l.addWidget(self.persona_list, stretch=2)
 
         form = QFormLayout()
-        self.topic_combo = QComboBox()
-        self.topic_combo.addItems(TOPICS)
-        self.topic_combo.setEditable(True)
-        form.addRow("Topic", self.topic_combo)
+        self.topic_edit = QLineEdit()
+        self.topic_edit.setPlaceholderText("Type any topic…")
+        self.topic_edit.setText(TOPICS[0] if TOPICS else "")
+        form.addRow("Your topic", self.topic_edit)
+
+        self.topic_presets = QComboBox()
+        self.topic_presets.addItem("— presets —")
+        self.topic_presets.addItems(TOPICS)
+        self.topic_presets.currentTextChanged.connect(self._preset_topic)
+        form.addRow("Or pick preset", self.topic_presets)
+
         self.rounds_spin = QSpinBox()
         self.rounds_spin.setRange(1, 6)
         self.rounds_spin.setValue(2)
         form.addRow("Rounds", self.rounds_spin)
+        left_l.addLayout(form)
+
+        src_box = QGroupBox("Sources")
+        src_l = QVBoxLayout(src_box)
+        mode_row = QHBoxLayout()
+        self.mode_free = QRadioButton("Free sources")
+        self.mode_limited = QRadioButton("Limited sources")
+        self.mode_free.setChecked(True)
+        self.mode_free.setToolTip(
+            "Debaters may cite their own works and historically plausible evidence."
+        )
+        self.mode_limited.setToolTip(
+            "Debaters may ONLY use the links/excerpts you paste below."
+        )
+        self._mode_group = QButtonGroup(self)
+        self._mode_group.addButton(self.mode_free)
+        self._mode_group.addButton(self.mode_limited)
+        mode_row.addWidget(self.mode_free)
+        mode_row.addWidget(self.mode_limited)
+        src_l.addLayout(mode_row)
+        src_l.addWidget(
+            QLabel("Paste links and/or excerpts (required for Limited mode):")
+        )
+        self.sources_edit = QTextEdit()
+        self.sources_edit.setPlaceholderText(
+            "Examples:\n"
+            "https://www.marxists.org/archive/marx/works/1867-c1/\n"
+            "---\n"
+            "Excerpt: \"The wealth of those societies…\" (Capital, Vol. I)\n"
+        )
+        self.sources_edit.setMinimumHeight(120)
+        src_l.addWidget(self.sources_edit)
+        left_l.addWidget(src_box, stretch=2)
+
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key_edit.setPlaceholderText("Optional OPENAI_API_KEY")
-        form.addRow("API key", self.api_key_edit)
+        self.api_key_edit.setPlaceholderText("Optional OPENAI_API_KEY for live debates")
+        left_l.addWidget(QLabel("API key"))
+        left_l.addWidget(self.api_key_edit)
         self.demo_check = QCheckBox("Force demo transcript")
-        form.addRow("", self.demo_check)
-        left_l.addLayout(form)
+        left_l.addWidget(self.demo_check)
 
         self.start_btn = QPushButton("Start debate")
         self.start_btn.clicked.connect(self.start_debate)
         left_l.addWidget(self.start_btn)
-        left_l.addStretch(1)
         splitter.addWidget(left)
 
         center = QWidget()
@@ -124,18 +179,19 @@ class MainWindow(QMainWindow):
         self.fact_feed = QTextEdit()
         self.fact_feed.setReadOnly(True)
         r_l.addWidget(self.fact_feed)
-        cite_box = QGroupBox("Primary-source tips")
+        cite_box = QGroupBox("Your supplied materials (mirror)")
         cite_l = QVBoxLayout(cite_box)
         self.cite_view = QTextEdit()
         self.cite_view.setReadOnly(True)
-        self.cite_view.setPlainText(
-            "Citations appear in debater turns as [Source: …].\n"
-            "Fact-checks suggest archival and secondary sources."
-        )
+        self.cite_view.setPlaceholderText("Sources you paste will show here when a debate starts.")
         cite_l.addWidget(self.cite_view)
         r_l.addWidget(cite_box)
         splitter.addWidget(right)
-        splitter.setSizes([280, 640, 360])
+        splitter.setSizes([340, 600, 360])
+
+    def _preset_topic(self, text: str):
+        if text and not text.startswith("—"):
+            self.topic_edit.setText(text)
 
     def _apply_dark(self):
         self.setStyleSheet(
@@ -149,7 +205,8 @@ class MainWindow(QMainWindow):
                 padding: 10px; font-weight: 600;
             }
             QPushButton:disabled { background: #333842; color: #888; }
-            QGroupBox { border: 1px solid #2c313c; margin-top: 8px; padding-top: 8px; }
+            QGroupBox { border: 1px solid #2c313c; margin-top: 8px; padding-top: 12px; }
+            QRadioButton { spacing: 6px; }
             """
         )
 
@@ -161,18 +218,34 @@ class MainWindow(QMainWindow):
         if not (2 <= len(ids) <= 3):
             QMessageBox.warning(self, "Pick debaters", "Select 2 or 3 figures.")
             return
+        topic = self.topic_edit.text().strip()
+        if not topic:
+            QMessageBox.warning(self, "Topic needed", "Type a topic or pick a preset.")
+            return
+        mode = "Limited" if self.mode_limited.isChecked() else "Free"
+        sources = self.sources_edit.toPlainText().strip()
+        if mode == "Limited" and not sources:
+            QMessageBox.warning(
+                self,
+                "Sources needed",
+                "Limited mode requires at least one link or excerpt.",
+            )
+            return
         if self._worker and self._worker.isRunning():
             return
         self.transcript.clear()
         self.fact_feed.clear()
+        self.cite_view.setPlainText(sources or "(Free mode — debaters find their own sources)")
         self.start_btn.setEnabled(False)
-        self._append_transcript("System", "Debate starting…", "#888888")
+        self._append_transcript("System", f"Starting · {mode} sources · {topic}", "#888888")
         self._worker = DebateWorker(
-            self.topic_combo.currentText().strip(),
+            topic,
             ids,
             self.rounds_spin.value(),
             self.api_key_edit.text().strip(),
             force_demo=self.demo_check.isChecked(),
+            source_mode=mode,
+            supplied_sources=sources,
         )
         self._worker.event.connect(self.on_event)
         self._worker.finished_ok.connect(self.on_done)
@@ -186,6 +259,8 @@ class MainWindow(QMainWindow):
             self.fact_feed.append(
                 f"<p style='color:{color}'><b>{_esc(ev.speaker_name)}</b><br>{_esc(ev.text)}</p>"
             )
+        elif ev.kind == "error":
+            self._append_transcript(ev.speaker_name, ev.text, "#e06666")
         else:
             self._append_transcript(ev.speaker_name, ev.text, color)
 

@@ -24,6 +24,12 @@ python -m dialectics_studio
 - No API key → demo transcript still runs (Marx vs Descartes).
 - Live multi-agent debates → paste an OpenAI-compatible key in the UI (or set `OPENAI_API_KEY`).
 
+## Sources & custom topics
+
+- **Your topic:** type anything in the topic field (presets optional).
+- **Free sources:** debaters cite their own historically plausible works/evidence.
+- **Limited sources:** paste links and/or excerpts; debaters may only argue from those materials.
+
 ## Layout
 
 Left: pick 2–3 debaters + topic · Center: Arena · Right: Historiographer + citation tips
