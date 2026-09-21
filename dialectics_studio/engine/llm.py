@@ -24,7 +24,7 @@ def api_configured(api_key: str | None = None) -> bool:
     )
 
 
-async def complete(system: str, user: str, api_key: str | None = None) -> str:
+async def complete(system: str, user: str, api_key: str | None = None, temperature: float = 0.55) -> str:
     key = api_key or os.environ.get("OPENAI_API_KEY") or os.environ.get("HDS_API_KEY")
     if not key:
         raise RuntimeError("No API key configured")
@@ -36,7 +36,7 @@ async def complete(system: str, user: str, api_key: str | None = None) -> str:
             headers={"Authorization": f"Bearer {key}"},
             json={
                 "model": model,
-                "temperature": 0.7,
+                "temperature": temperature,
                 "messages": [
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},

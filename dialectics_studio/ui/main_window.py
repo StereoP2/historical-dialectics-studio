@@ -259,6 +259,12 @@ class MainWindow(QMainWindow):
             self.fact_feed.append(
                 f"<p style='color:{color}'><b>{_esc(ev.speaker_name)}</b><br>{_esc(ev.text)}</p>"
             )
+        elif ev.kind == "invalidate":
+            self.fact_feed.append(
+                f"<p style='color:#ff6b6b;border:1px solid #ff6b6b;padding:8px'>"
+                f"<b>⛔ INVALIDATED</b><br>{_esc(ev.text)}</p>"
+            )
+            self._append_transcript("Historiographer", f"⛔ {ev.text}", "#ff6b6b")
         elif ev.kind == "error":
             self._append_transcript(ev.speaker_name, ev.text, "#e06666")
         else:
